@@ -1,0 +1,77 @@
+version: '3.2'
+
+services:
+  elasticsearch:
+    image: elasticsearch:7.7.0
+    container_name: elasticsearch
+    hostname: elasticsearch
+    environment:
+        - "discovery.type=single-node"
+    ports:
+        - 9200:9200
+        - 9300:9300
+    networks:
+        - elknetwork
+  kibana:
+    image: kibana:7.7.0
+    container_name: kibana
+    hostname: kibana
+    ports:
+        - 5601:5601
+    links:
+        - elasticsearch:elasticsearch
+    depends_on:
+      - elasticsearch
+    networks:
+      - elknetwork
+  logstash:
+    image: logstash:7.7.0
+    container_name: logstash
+    hostname: logstash
+    ports:
+        - 9600:9600
+        - 8089:8089
+    volumes:
+      - ./logstash:/usr/share/logstash/pipeline/
+    links:
+        - elasticsearch:elasticsearch
+    depends_on:
+      - elasticsearch
+    networks:
+      - elknetwork
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: always
+    ports:
+      - 3000:3000
+    networks:
+      - metrics
+    volumes:
+      - $PWD/data/grafana:/var/lib/grafana
+  graphite:
+    image: graphiteapp/graphite-statsd
+    container_name: graphite
+    restart: always
+    ports:
+      - 8081:80
+    networks:
+      - metrics
+  merc-benz-route-checker:
+    image: sdjthedeveloper/merc-benz-route-checker:demo
+    container_name: merc-benz-route-checker
+    ports:
+      - 8080:8080
+    expose: 
+      - 8080
+    networks:
+      - metrics
+      - elknetwork
+    depends_on:
+      - logstash
+      - graphite
+networks:
+  metrics:
+    driver: bridge
+  elknetwork:
+    driver: bridge
